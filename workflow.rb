@@ -23,7 +23,7 @@ module PVacSeq
   MHCFLURRY_DOWNLOADS_DIR=Rbbt.share.databases["mhcflurry"].find
   IEDB_INSTALL_DIR=Rbbt.software.opt.IEDB.mhc_i.produce.find
 
-  dep VEP, :analysis, :args_VEP => "--pick --symbol --terms SO --plugin Downstream --plugin Wildtype"
+  dep VEP, :analysis, :args_VEP => "--format vcf --vcf --offline --cache --pick --symbol --terms SO --plugin Downstream --plugin Wildtype --tsl"
   extension :vcf
   task :prepare => :text do
     TSV.traverse step(:analysis), :into => :stream, :type => :array, :bar => "Preparing VEP VCF" do |line|
@@ -53,13 +53,21 @@ module PVacSeq
   input :alleles, :array, "Alleles to query"
   task :analysis => :tsv do |alleles|
     target = file('output')
-    alleles = alleles.collect{|a| a =~ /^HLA-/ ? a : "HLA-" << a }.collect{|a| a.split(":").values_at(0,1) * ":"}.uniq
+    alleles = alleles.reject{|a| a =~ /---/}.collect{|a| a =~ /^HLA-/ ? a : "HLA-" << a }.collect{|a| a.split(":").values_at(0,1) * ":"}.uniq
 
     #CMD.cmd_log("pvacseq run '#{step(:prepare).produce.path}' Test #{alleles * ","} NetMHC PickPocket NNalign '#{target}' -e 9,10 --tdna-vaf 20 --net-chop-method cterm --netmhc-stab --top-score-metric=lowest -d full --keep-tmp-files")
     
-    CMD.cmd_log("env MHCFLURRY_DOWNLOADS_DIR=#{MHCFLURRY_DOWNLOADS_DIR} pvacseq run '#{step(:prepare).produce.path}' Test #{alleles * ","} MHCflurry MHCnuggetsI MHCnuggetsII NNalign NetMHC PickPocket SMM SMMPMBEC SMMalign '#{target}' -e 8,9,10 --binding-threshold 1000000 --iedb-install-directory #{IEDB_INSTALL_DIR}/..")
+    CMD.cmd_log("env MHCFLURRY_DOWNLOADS_DIR=#{MHCFLURRY_DOWNLOADS_DIR} \
+                pvacseq run '#{step(:prepare).produce.path}' Test \
+                #{alleles * ","} \
+                MHCflurry MHCnuggetsI MHCnuggetsII NNalign NetMHC PickPocket SMM SMMPMBEC SMMalign \
+                '#{target}' \
+                --iedb-install-directory #{IEDB_INSTALL_DIR}/.. \
+                -e 10 --binding-threshold 1000000 --maximum-transcript-support-level 1 \
+                ")
 
-    files = file('output').glob('MHC_Class_*/Test.final.tsv')
+                #-e 8,9,10 --binding-threshold 1000000 \
+    files = file('output').glob('MHC_Class_*/Test.filtered.tsv')
     tsv = files.shift.tsv :header_hash => "", :merge => true
     if files.any?
       tsv = tsv.attach files.first.tsv(:header_hash => "", :merge => true)
