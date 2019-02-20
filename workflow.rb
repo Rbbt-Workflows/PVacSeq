@@ -55,18 +55,13 @@ module PVacSeq
     target = file('output')
     alleles = alleles.reject{|a| a =~ /---/}.collect{|a| a =~ /^HLA-/ ? a : "HLA-" << a }.collect{|a| a.split(":").values_at(0,1) * ":"}.uniq
 
-    #CMD.cmd_log("pvacseq run '#{step(:prepare).produce.path}' Test #{alleles * ","} NetMHC PickPocket NNalign '#{target}' -e 9,10 --tdna-vaf 20 --net-chop-method cterm --netmhc-stab --top-score-metric=lowest -d full --keep-tmp-files")
-    
     CMD.cmd_log("env MHCFLURRY_DOWNLOADS_DIR=#{MHCFLURRY_DOWNLOADS_DIR} \
-                pvacseq run '#{step(:prepare).produce.path}' Test \
-                #{alleles * ","} \
-                MHCflurry MHCnuggetsI MHCnuggetsII NNalign NetMHC PickPocket SMM SMMPMBEC SMMalign \
-                '#{target}' \
-                --iedb-install-directory #{IEDB_INSTALL_DIR}/.. \
-                -e 10 --binding-threshold 1000000 --maximum-transcript-support-level 1 \
-                ")
+pvacseq run '#{step(:prepare).produce.path}' Test #{alleles * ","} \
+MHCflurry MHCnuggetsI MHCnuggetsII NNalign NetMHC PickPocket SMM SMMPMBEC SMMalign \
+'#{target}' \
+--iedb-install-directory #{IEDB_INSTALL_DIR}/.. \
+-e 8,9,10 --binding-threshold 1000000")
 
-                #-e 8,9,10 --binding-threshold 1000000 \
     files = file('output').glob('MHC_Class_*/Test.filtered.tsv')
     tsv = files.shift.tsv :header_hash => "", :merge => true
     if files.any?
