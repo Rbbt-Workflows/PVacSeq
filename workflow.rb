@@ -55,11 +55,14 @@ module PVacSeq
     target = file('output')
     alleles = alleles.reject{|a| a =~ /---/}.collect{|a| a =~ /^HLA-/ ? a : "HLA-" << a }.collect{|a| a.split(":").values_at(0,1) * ":"}.uniq
 
+    cpus = config(:cpus, :PVacSeq, :pvacseq, :neo_epitopes, :default => 3)
+
     CMD.cmd_log("env MHCFLURRY_DOWNLOADS_DIR=#{MHCFLURRY_DOWNLOADS_DIR} \
 pvacseq run '#{step(:prepare).produce.path}' Test #{alleles * ","} \
 MHCflurry MHCnuggetsI MHCnuggetsII NNalign NetMHC PickPocket SMM SMMPMBEC SMMalign \
 '#{target}' \
 --iedb-install-directory #{IEDB_INSTALL_DIR}/.. \
+-t #{cpus} \
 -e 8,9,10 --binding-threshold 1000000")
 
     files = file('output').glob('MHC_Class_*/Test.filtered.tsv')
