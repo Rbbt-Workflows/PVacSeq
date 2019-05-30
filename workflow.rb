@@ -23,15 +23,15 @@ module PVacSeq
   MHCFLURRY_DOWNLOADS_DIR=Rbbt.share.databases["mhcflurry"].find
   IEDB_INSTALL_DIR=Rbbt.software.opt.IEDB.mhc_i.produce.find
 
-  dep VEP, :analysis, :args_VEP => "--format vcf --vcf --offline --cache --pick --symbol --terms SO --plugin Downstream --plugin Wildtype --tsl"
+  dep VEP, :analysis, :args_VEP => "--format vcf --pick --symbol --terms SO --plugin Downstream --plugin Wildtype --tsl"
   extension :vcf
   task :prepare => :text do
     TSV.traverse step(:analysis), :into => :stream, :type => :array, :bar => "Preparing VEP VCF" do |line|
       if line =~ /^#/
         if line =~ /^#CHR/
           line + "\tFORMAT\tSAMPLE"
-        elsif line =~ /WildtypeProtein/
-          line.sub!('WildtypeProtein','WildtypeProtein|DownstreamProtein|ProteinLengthChange')
+        #elsif line =~ /WildtypeProtein/
+        #  line.sub!('WildtypeProtein','WildtypeProtein|DownstreamProtein|ProteinLengthChange')
         else
           line
         end
@@ -40,7 +40,7 @@ module PVacSeq
         #next unless %w(A C T G).include? line.split("\t")[4]
         format = "GT"
         sample = "1/1"
-        line = line + "||" 
+        line = line
         line + "\t" + format + "\t" + sample
       end
     end
