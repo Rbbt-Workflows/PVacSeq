@@ -21,9 +21,10 @@ module PVacSeq
   MHCFLURRY_DOWNLOADS_DIR=Rbbt.share.databases["mhcflurry"].find
   IEDB_INSTALL_DIR=Rbbt.software.opt.IEDB.mhc_i.produce.find
 
+  input :vcf, :tsv, "VCF File", nil, :nofile => true
   extension :vcf
-  task :add_sample_info => :text do
-    TSV.traverse step(:analysis), :into => :stream, :type => :array, :bar => "Preparing VEP VCF" do |line|
+  task :add_sample_info => :text do |vcf|
+    TSV.traverse vcf, :into => :stream, :type => :array, :bar => "Preparing VEP VCF" do |line|
       if line =~ /^#/
         if line =~ /^#CHR/
           line + "\tFORMAT\tSAMPLE"
@@ -41,12 +42,12 @@ module PVacSeq
   end
 
   dep VEP, :analysis, :args_VEP => "--format vcf --pick --symbol --terms SO --plugin Downstream --plugin Wildtype --tsl", :compute => :produce
-  dep :add_sample_info do |jobname,options,dependencies|
+  dep :add_sample_info, :compute => :produce do |jobname,options,dependencies|
     vep = dependencies.flatten.select{|dep| dep.task_name == :analysis && dep.workflow.to_s == "VEP"}.first
     if options[:vcf_file]
       nil
     else
-      {:input => options, :jobname => jobname}
+      {:inputs => options.merge(:vcf => vep), :jobname => jobname}
     end
   end
   input :alleles, :array, "Alleles to query"
@@ -76,16 +77,21 @@ module PVacSeq
       end
     end
 
-    CMD.cmd_log("env MHCFLURRY_DOWNLOADS_DIR=#{MHCFLURRY_DOWNLOADS_DIR} \
+    methods = %w(MHCflurry MHCnuggetsI MHCnuggetsII NNalign NetMHC NetMHCIIpan NetMHCcons NetMHCpan PickPocket SMM SMMPMBEC SMMalign)
+    stab = true
+    Misc.insist do
+      CMD.cmd_log("env MHCFLURRY_DOWNLOADS_DIR=#{MHCFLURRY_DOWNLOADS_DIR} \
 pvacseq run '#{file}' '#{tumor_sample}' #{alleles * ","} \
-MHCflurry MHCnuggetsI MHCnuggetsII NNalign NetMHC NetMHCIIpan NetMHCcons NetMHCpan PickPocket SMM SMMPMBEC SMMalign \
+#{methods * " "} \
 '#{target}' \
 --iedb-install-directory #{IEDB_INSTALL_DIR}/.. \
 #{normal_sample ? "--normal-sample-name #{normal_sample}" : ""} \
 -t #{cpus} \
---netmhc-stab \
+#{ stab ? "--netmhc-stab" : ""} \
 --pass-only \
 -e 8,9,10 --binding-threshold 1000000")
+      CMD.cmd('killall dbus-daemon', :no_fail => true)
+    end
 
     files = file('output').glob("MHC_Class_*/#{tumor_sample}.filtered.tsv")
     tsv = files.shift.tsv :header_hash => "", :merge => true
