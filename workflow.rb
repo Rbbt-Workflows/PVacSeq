@@ -51,7 +51,10 @@ module PVacSeq
     end
   end
   input :alleles, :array, "Alleles to query"
-  task :analysis => :tsv do |alleles|
+  input :methods, :array, "Methods to use (empty to use all)"
+  input :stab, :boolean, "Use netstab (requires internet)", false
+  input :sizes, :array, "Peptide sizes", [8,9,10]
+  task :analysis => :tsv do |alleles,methods,stab,sizes|
     target = file('output')
     alleles = alleles.reject{|a| a =~ /---/}.collect{|a| a =~ /^HLA-/ ? a : "HLA-" << a }.collect{|a| a.split(":").values_at(0,1) * ":"}.uniq
 
@@ -77,8 +80,9 @@ module PVacSeq
       end
     end
 
-    methods = %w(MHCflurry MHCnuggetsI MHCnuggetsII NNalign NetMHC NetMHCIIpan NetMHCcons NetMHCpan PickPocket SMM SMMPMBEC SMMalign)
-    stab = true
+    methods = %w(MHCflurry MHCnuggetsI MHCnuggetsII NNalign NetMHC NetMHCIIpan NetMHCcons NetMHCpan PickPocket SMM SMMPMBEC SMMalign) if methods.nil? || methods.empty?
+    sizes = [8,9,10,11] if sizes.nil? or sizes.empty?
+
     Misc.insist do
       CMD.cmd_log("env MHCFLURRY_DOWNLOADS_DIR=#{MHCFLURRY_DOWNLOADS_DIR} \
 pvacseq run '#{file}' '#{tumor_sample}' #{alleles * ","} \
@@ -89,7 +93,7 @@ pvacseq run '#{file}' '#{tumor_sample}' #{alleles * ","} \
 -t #{cpus} \
 #{ stab ? "--netmhc-stab" : ""} \
 --pass-only \
--e 8,9,10 --binding-threshold 1000000")
+-e #{sizes * ","} --binding-threshold 1000000")
       CMD.cmd('killall dbus-daemon', :no_fail => true)
     end
 
