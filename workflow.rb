@@ -8,8 +8,9 @@ module PVacSeq
   extend Workflow
 
   Rbbt.claim Rbbt.software.opt.IEDB[".source"]["IEDB_MHC_I.tar.gz"], :proc do  |filename|
-    raise "Download from http://downloads.iedb.org/ and place in #{filename}"
+    raise "Download from http://tools.iedb.org/mhci/download/ and place in #{filename}"
   end
+
   Rbbt.claim Rbbt.software.opt.IEDB.mhc_i, :proc do |directory|
     source = Rbbt.software.opt.IEDB[".source"]["IEDB_MHC_I.tar.gz"].produce.find
     Misc.untar(source, directory + '/..')
